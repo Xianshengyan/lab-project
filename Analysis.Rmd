@@ -24,6 +24,12 @@ box_setwd("1410")
 data <- readRDS("bangladesh-cleaned-master-data.RDS")
 ```
 ```{r}
-print("Hello")
+x <- 10
+if (x<5){
+  print("no")
+}else{
+  print("yes")
+}
 ```
+
 
