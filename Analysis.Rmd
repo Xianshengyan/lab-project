@@ -10,12 +10,11 @@ library(boxr)
 ```
 
 ```{r}
-#usethis::edit_r_environ()
+usethis::edit_r_environ()
 boxr_id<- "b176f28aebxv34pp0irdlocofoumpamg"
 boxr_secret <- "gT3kf9xTt1BB3ZxSiHWEV16SsqMr5WCb"
 
 box_auth(client_id= boxr_id, client_secret = boxr_secret)
-box_auth()
 box_setwd("1410")
 
 ```
@@ -23,5 +22,8 @@ box_setwd("1410")
 
 ```{r}
 data <- readRDS("bangladesh-cleaned-master-data.RDS")
+```
+```{r}
+print("Hello")
 ```
 
