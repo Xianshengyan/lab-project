@@ -1,0 +1,27 @@
+---
+title: "Analysis"
+output: html_document
+date: "2023-05-18"
+---
+
+```{r}
+install.packages("boxr")
+library(boxr)
+```
+
+```{r}
+#usethis::edit_r_environ()
+boxr_id<- "b176f28aebxv34pp0irdlocofoumpamg"
+boxr_secret <- "gT3kf9xTt1BB3ZxSiHWEV16SsqMr5WCb"
+
+box_auth(client_id= boxr_id, client_secret = boxr_secret)
+box_auth()
+box_setwd("1410")
+
+```
+
+
+```{r}
+data <- readRDS("bangladesh-cleaned-master-data.RDS")
+```
+
