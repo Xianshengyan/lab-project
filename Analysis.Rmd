@@ -3,33 +3,184 @@ title: "Analysis"
 output: html_document
 date: "2023-05-18"
 ---
-
-```{r}
-install.packages("boxr")
+##Install Libraries
+```{r, echo=FALSE}
+#install.packages("boxr")
 library(boxr)
+library(dplyr)
+library(ggplot2)
+library(ggcorrplot)
+library(gridExtra)
 ```
 
-```{r}
-usethis::edit_r_environ()
-boxr_id<- "b176f28aebxv34pp0irdlocofoumpamg"
-boxr_secret <- "gT3kf9xTt1BB3ZxSiHWEV16SsqMr5WCb"
+##Read in Data
+```{r, echo=FALSE}
+#usethis::edit_r_environ()
 
-box_auth(client_id= boxr_id, client_secret = boxr_secret)
-box_setwd("1410")
+boxr_id <- "vodcddf2odd59zodg7jolx9oi76a5ej4"
+boxr_secret <- "XU6KVN14VsRkcmKYEe2AUxEcftyxAQFu"
+
+box_auth(client_id = boxr_id,client_secret = boxr_secret)
+
+df <- box_read(871638120165)
 
 ```
 
+##Get Relevant data
+```{r, echo=FALSE}
+preg_stress <- df[df$pregnancy_stress == 1,]
+
+potential_confounders <- c("sex", "momage", "momheight", "momedu", "HHwealth_scaled","roof","walls","floor","elec",                       "asset_radio", "asset_tvbw", "asset_tvcol", "asset_refrig","asset_bike","asset_moto", "asset_sewmach","asset_phone",   "asset_tv","asset_wardrobe", "asset_table","asset_chair","asset_clock","asset_khat","asset_chouki","asset_mobile", "birthord","n_cattle", "n_goat", "n_chicken")
+
+vars <- c("ln_preg_cort","ln_mpo2", "ln_mpo3", "ln_aat2", "ln_aat3", "ln_neo2", "ln_neo3", "ln_reg2", "ln_L_conc_t2", "ln_L_conc_t3", "ln_M_conc_t2", "ln_M_conc_t3", "t2_ln_agp", "t2_ln_ifn","sumscore_t2_Z", "t3_ln_agp", "t3_ln_crp", "t3_ln_ifn","sumscore_t3_Z", "t2_ln_crp", "t3_ln_crp")
+
+preg_stress_clean <- preg_stress %>% select(c(vars, potential_confounders))
+```
+
+## Bootstrapping Function
 
 ```{r}
-data <- readRDS("bangladesh-cleaned-master-data.RDS")
-```
-```{r}
-x <- 10
-if (x<5){
-  print("no")
-}else{
-  print("yes")
+get_bootstrapped_coef <- function(data, x_col, num_bootstraps){
+  
+    coefs <- c()
+  
+    for (i in 1:num_bootstraps){
+      bootstrap <- data[sample(1:nrow(data), replace=TRUE) ,]
+      x <- bootstrap[[x_col]]
+      reg <-  lm(formula = bootstrap$ln_preg_cort ~ x + bootstrap$sex + bootstrap$momage + bootstrap$momheight + bootstrap$momedu +
+                   bootstrap$HHwealth_scaled + bootstrap$roof + bootstrap$walls + bootstrap$floor + bootstrap$elec + bootstrap$asset_radio +
+                   bootstrap$asset_tvbw +  bootstrap$asset_tvcol + bootstrap$asset_refrig + bootstrap$asset_bike + bootstrap$asset_moto +
+                   bootstrap$asset_sewmach + bootstrap$asset_phone + bootstrap$asset_tv + bootstrap$asset_wardrobe + bootstrap$asset_table +
+                   bootstrap$asset_chair + bootstrap$asset_clock + bootstrap$asset_khat + bootstrap$asset_chouki + bootstrap$asset_mobile +
+                   bootstrap$birthord + bootstrap$n_cattle +bootstrap$n_goat + bootstrap$n_chicken)
+      
+      reg_coef <- summary(reg)$coefficients[2]
+      coefs <- append(coefs, reg_coef)
+
+    }
+    return(quantile(coefs, probs= c(0.025, 0.975)))
+    
 }
+
 ```
 
 
+## Hypothesis 1a. 
+Maternal cortisol levels during pregnancy are positively associated with myeloperoxidase (MPO).
+
+Linear Regression:
+
+```{r}
+m1a1 <- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_mpo2 + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1a1)
+```
+```{r}
+m1a2 <- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_mpo3 + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1a2)
+```
+
+MPO Bootstrapped Regression Coefficients
+```{r}
+print("ln_mpo2 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_mpo2', 500))
+print("ln_mpo3 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_mpo3', 500))
+
+```
+
+## Hypothesis 1b.
+Maternal cortisol levels during pregnancy are positively associated with alpha-1 antitrypsin (A1AT)
+
+```{r}
+m1b1 <- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_aat2 + + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1b1)
+```
+```{r}
+m1b2 <- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_aat3 + + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1b2)
+```
+
+A1AT Bootstrapped Regression Coefficients
+```{r}
+print("ln_aat2 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_aat2', 500))
+print("ln_aat3 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_aat3', 500))
+
+```
+
+
+## Hypothesis 1c.
+Maternal cortisol levels during pregnancy are positively associated with neopterin (NEO)
+
+```{r}
+m1c1 <- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_neo2 + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1c1)
+```
+```{r}
+m1c2 <- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_neo3 + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1c2)
+```
+Neopterin Bootstrapped Regression Coefficients
+```{r}
+print("ln_neo2 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_neo2', 500))
+print("ln_neo3 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_neo3', 500))
+
+```
+
+## Hypothesis 1d.
+Maternal cortisol levels during pregnancy are positively associated with the regenerating gene 1β (REG1B).
+```{r}
+m1d<- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_reg2 + + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1d)
+```
+
+
+REG1B Bootstrapped Regression Coefficients
+```{r}
+print("ln_reg2 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_reg2', 500))
+
+```
+
+## Hypothesis 1e.
+Maternal cortisol levels during pregnancy are positively associated with lactulose.
+```{r}
+m1e1<- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_L_conc_t2 + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1e1)
+```
+
+```{r}
+m1e2<- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_L_conc_t3 + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1e2)
+```
+
+Lactulose Bootstrapped Regression Coefficients
+```{r}
+print("ln_L_conc_t2 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_L_conc_t2', 500))
+print("ln_L_conc_t3 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_L_conc_t3', 500))
+
+```
+
+## Hypothesis 1f.
+Maternal cortisol levels during pregnancy are positively associated with mannitol.
+```{r}
+m1f1<- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_M_conc_t2  + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1f1)
+```
+```{r}
+m1f2<- lm(data = preg_stress_clean, formula = ln_preg_cort ~ ln_M_conc_t3  + sex + momage + momheight + momedu + HHwealth_scaled + roof + walls + floor + elec + asset_radio + asset_tvbw + asset_tvcol + asset_refrig + asset_bike + asset_moto + asset_sewmach + asset_phone +  asset_tv + asset_wardrobe + asset_table + asset_chair + asset_clock + asset_khat + asset_chouki + asset_mobile + birthord + n_cattle + n_goat + n_chicken)
+summary(m1f2)
+```
+
+Mannitol Bootstrapped Regression Coefficients
+```{r}
+print("ln_M_conc_t2 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_M_conc_t2', 500))
+print("ln_M_conc_t3 bootstrapped cofficients")
+print(get_bootstrapped_coef(preg_stress_clean, 'ln_M_conc_t3', 500))
+```
